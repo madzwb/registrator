@@ -4,10 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "registrator"
-version = "0.0.1"
+# version = "0.0.1"
+dynamic = ["version"]
 authors = [
   { name="Volodymyr Zawatsky", email="volodymyr.zawatsky@gmail.com" },
 ]
+license = {file = "LICENSE"}
 description = "Registrator"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,3 +22,15 @@ classifiers = [
 [project.urls]
 "Homepage" = "https://github.com/madzwb/registrator"
 "Bug Tracker" = "https://github.com/madzwb/registrator/issues"
+
+# See https://github.com/pypa/setuptools_scm/blob/main/pyproject.toml
+[tool.setuptools_scm]
+# "calver-by-date" "guess-next-dev" "no-guess-dev" "post-release" "python-simplified-semver" "release-branch-semver"
+version_scheme = "release-branch-semver"
+# "dirty-tag" "node-and-date" "node-and-timestamp"
+local_scheme =  "no-local-version"
+# [tool.setuptools]
+# packages = ["registrator"]
+
+# [tool.setuptools.packages.find]
+# where = ["src"]
