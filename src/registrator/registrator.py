@@ -14,10 +14,13 @@ def register(
         module  : str           = __name__,
         env     : dict[Any, Any]= globals(),
         base    : type|None     = None,
-        filters : list[str]     = ["__builtins__"]
+        filters : list[str]     = ["__builtins__"],
+        replace : bool          = True,
     ) -> dict[str, Callable]\
     :
     result = {}
+    if base is None:
+        base = object
     attributes = dir(sys.modules[module])
     # _globals = globals()
     for attribute in attributes:
@@ -30,18 +33,48 @@ def register(
         if not name or name in attribute:
 
             _type = env[attribute]
-            if base is None:
-                base = object
 
-            if          callable(_type)             \
-                and     issubclass(_type, base)     \
-                and not inspect.isabstract(_type)   \
-                :
+            if  check(_type, base, False):
                 # print(attribute,"\t",_type)
-                key = attribute.replace(name,"")
+                if replace:
+                    key = attribute.replace(name,"")
+                else:
+                    key = attribute
                 if key:
                     result[key.lower()] = _type
     return result
+
+def check(_type: type, _base: type, throw = False) -> bool:
+    if      _type is not None                               \
+        and callable(_type)                                 \
+        and (                                               \
+                (                                           \
+                            inspect.isclass(_type)          \
+                    and     _type != _base                  \
+                    and     issubclass(_type, _base)        \
+                    and not inspect.isabstract(_type)       \
+                )                                           \
+                or                                          \
+                (                                           \
+                            inspect.isfunction(_type)       \
+                    and     type(_type) == _base            \
+                    and     issubclass(type(_type), _base)  \
+                )                                           \
+            )                                               \
+    :
+        return True
+    elif throw:
+        if not callable(_type):
+            raise TypeError(f"Type:'{_type}' is not callable.")
+        elif inspect.isabstract(_type):
+            raise TypeError(f"Type:'{_type}' is abstract class.")
+        elif not issubclass(cast(type, _type), _base):
+            info = f"Type:'{_type}' is not a subclass of '"
+            info += f"{_base.__name__}" if hasattr(_base,"__name__") else f"{_base}"
+            info += "'."
+            raise TypeError(info)
+    else:
+        return False
 
 
 
@@ -70,7 +103,8 @@ class REGISTRATOR(UserDict):
             module  : str           = __name__,
             env     : dict[Any, Any]= globals(),
             base    : type|None     = None,
-            filters : list[str]     = ["__builtins__"]
+            filters : list[str]     = ["__builtins__"],
+            replace : bool          = False,
         ):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -79,18 +113,22 @@ class REGISTRATOR(UserDict):
         if base is not None:
             cls._base = base
 
-        data = register(name, module, env, base, filters)
+        data = register(name, module, env, base, filters, replace)
         for key, value in data.items():
             setattr(value, cls.attribute, key)
             # v.alias = k
         cls._instance.update(data)
-    
+
+    @classmethod
+    def check(cls, _type: type, throw: bool = False) -> bool:
+        return check(_type, cls._base, throw)
+
     def __call__(self, *args: Any, **kwargs: Any) -> dict|object:
         if args and args[0]:
             key = args[0]
             return self[key]
         else:
-            return REGISTRY._instance
+            return REGISTRATOR._instance
 
     def __getitem__(self, key:  str):
         return super().__getitem__(key)
@@ -101,16 +139,6 @@ class REGISTRATOR(UserDict):
                 super().__delitem__(key)
             else:
                 raise KeyError(f"In dict:'{super(UserDict,self).__repr__()}', key:'{key}' not found.")
-        elif cls is not None:
-            if  not inspect.isabstract(cls)                 \
-                and issubclass(cast(type, cls), self._base) \
-                and callable(cls)                           \
-                :
-                setattr(cls, self.attribute, key)
-                super().__setitem__(key,cls)
-            elif inspect.isabstract(cls):
-                raise TypeError(f"Class:'{cls}' is abstract class.")
-            elif not issubclass(cast(type, cls), self._base):
-                raise TypeError(f"Class:'{cls}' is not a subclass of {self._base.__name__}.")
-            elif not callable(cls):
-                raise TypeError(f"Class:'{cls}' is not callable.")
+        elif self.check(cls, True):
+            setattr(cls, self.attribute, key)
+            super().__setitem__(key,cls)
