@@ -22,7 +22,6 @@ def register(
     if base is None:
         base = object
     attributes = dir(sys.modules[module])
-    # _globals = globals()
     for attribute in attributes:
         if attribute not in env:
             continue
@@ -35,7 +34,6 @@ def register(
             _type = env[attribute]
 
             if  check(_type, base, False):
-                # print(attribute,"\t",_type)
                 if replace:
                     key = attribute.replace(name,"")
                 else:
@@ -44,7 +42,7 @@ def register(
                     result[key.lower()] = _type
     return result
 
-def check(_type: type, _base: type, throw = False) -> bool:
+def check(_type: type|Callable, _base: type, throw = False) -> bool: # type: ignore
     if      _type is not None                               \
         and callable(_type)                                 \
         and (                                               \
@@ -85,7 +83,7 @@ class REGISTRATOR(UserDict):
     _initialized: bool              = False
 
     def __new__(cls, *args, **kwargs):
-        if cls._instance is None:# not hasattr(cls, '_instance'):
+        if cls._instance is None:
             cls._instance       = super().__new__(cls, *args, **kwargs)
             cls._initialized    = False
         return cls._instance
@@ -116,11 +114,10 @@ class REGISTRATOR(UserDict):
         data = register(name, module, env, base, filters, replace)
         for key, value in data.items():
             setattr(value, cls.attribute, key)
-            # v.alias = k
         cls._instance.update(data)
 
     @classmethod
-    def check(cls, _type: type, throw: bool = False) -> bool:
+    def check(cls, _type: type|Callable, throw: bool = False) -> bool:
         return check(_type, cls._base, throw)
 
     def __call__(self, *args: Any, **kwargs: Any) -> dict|object:
