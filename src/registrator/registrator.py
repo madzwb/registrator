@@ -34,7 +34,7 @@ def register(
             _type = env[attribute]
 
             if  check(_type, base, False):
-                if replace:
+                if name and replace:
                     key = attribute.replace(name,"")
                 else:
                     key = attribute
